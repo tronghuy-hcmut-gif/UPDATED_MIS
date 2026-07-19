@@ -1,46 +1,33 @@
 import os
-import sys
 import json
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from openai import OpenAI
 import requests
+from openai import OpenAI
 
 # ==========================================
 # CẤU HÌNH GIAO DIỆN
 # ==========================================
 st.set_page_config(page_title="OPC Mission Control", page_icon="⚡", layout="wide")
 
-# Địa chỉ Backend trên Render (Đã cập nhật)
 BACKEND_URL = "https://backend-qm8g.onrender.com"
 
-st.markdown("""
-    <style>
-        .stApp { background: #080c16 !important; }
-        .stTabs [data-baseweb="tab"] { color: #94a3b8; }
-        .stTabs [aria-selected="true"] { color: white !important; }
-    </style>
-""", unsafe_allow_html=True)
-
-# Lấy API Key từ Environment Variable
-api_key = os.environ.get("OPENAI_API_KEY")
-
-# Nếu không có (ví dụ chạy local), thì thử lấy trong secrets.toml
-if not api_key:
-    try:
-        api_key = st.secrets["OPENAI_API_KEY"]
-    except:
-        pass
+# ==========================================
+# KHỞI TẠO API KEY (CỰC KỲ QUAN TRỌNG)
+# ==========================================
+# Lấy trực tiếp từ biến môi trường của Render
+api_key = os.getenv("OPENAI_API_KEY")
 
 if not api_key:
-    st.error("🚨 Không tìm thấy API Key! Hãy kiểm tra Environment Variable trên Render.")
+    st.error("🚨 LỖI: Không tìm thấy OPENAI_API_KEY!")
+    st.info("Vui lòng kiểm tra tab 'Environment' trên Render, đảm bảo Key là 'OPENAI_API_KEY' và không có khoảng trắng dư thừa.")
     st.stop()
 
+# Khởi tạo client OpenAI
 client = OpenAI(api_key=api_key)
+
 # ==========================================
-# CÁC HÀM AGENT
+# CÁC HÀM AGENT (GIỮ NGUYÊN)
 # ==========================================
 def agent_planner(data_bundle):
     response = client.chat.completions.create(model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": "Trả về JSON: { 'task_breakdown': '...', 'approval_gates': '...', 'workflow_plan': '...' } Tiếng Việt."}, {"role": "user", "content": data_bundle.get('contracts', '')}], temperature=0.1)
@@ -61,7 +48,7 @@ def agent_decision(full_packet):
     return client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": "Tổng Giám Đốc phán quyết DUYỆT hoặc TỪ CHỐI. Max 4 câu."}, {"role": "user", "content": full_packet}], temperature=0.1).choices[0].message.content
 
 # ==========================================
-# HÀM CHÍNH
+# HÀM CHÍNH (DASHBOARD)
 # ==========================================
 def main():
     if "data_loaded" not in st.session_state:
@@ -83,12 +70,11 @@ def main():
                         st.session_state.data_loaded = True
                         st.rerun()
                     else:
-                        st.error("Lỗi Backend!")
+                        st.error(f"Lỗi Backend: {res.status_code}")
                 except Exception as e:
                     st.error(f"Lỗi kết nối: {e}")
         st.stop()
 
-    # DASHBOARD
     st.markdown("## ⚡ OPC Multi-Agent Command Center")
     if st.button("🔄 Đóng Dashboard"):
         st.session_state.clear()
