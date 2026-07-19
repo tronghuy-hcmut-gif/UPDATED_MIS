@@ -25,12 +25,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Lấy API Key từ Environment Variable (phù hợp cho cả local và Render)
+# Lấy Key từ Environment Variable của Render (Ưu tiên số 1)
 api_key = os.environ.get("OPENAI_API_KEY")
-if not api_key:
-    st.error("🚨 Không tìm thấy OPENAI_API_KEY trong hệ thống!")
-    st.stop()
-client = OpenAI(api_key=api_key)
 
+# Nếu không có (ví dụ chạy local), thì thử lấy trong secrets.toml
+if not api_key:
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+    except:
+        pass
+
+if not api_key:
+    st.error("🚨 Không tìm thấy API Key! Hãy kiểm tra Environment Variable trên Render.")
+    st.stop()
+
+client = OpenAI(api_key=api_key)
 # ==========================================
 # CÁC HÀM AGENT
 # ==========================================
