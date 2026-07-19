@@ -24,8 +24,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Lấy API Key từ Environment Variable (phù hợp cho cả local và Render)
-# Lấy Key từ Environment Variable của Render (Ưu tiên số 1)
+# Lấy API Key từ Environment Variable
 api_key = os.environ.get("OPENAI_API_KEY")
 
 # Nếu không có (ví dụ chạy local), thì thử lấy trong secrets.toml
