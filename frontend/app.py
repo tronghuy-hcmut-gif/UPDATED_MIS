@@ -35,13 +35,25 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-try:
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-except Exception as e:
-    st.error("🚨 Không tìm thấy API Key trong Secrets!")
+# ĐỊA CHỈ BACKEND TRÊN RENDER
+BACKEND_URL = "https://backend-qm8g.onrender.com"
+
+# LẤY API KEY CHUẨN TRÊN RENDER
+api_key = os.environ.get("OPENAI_API_KEY")
+
+if not api_key:
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+    except:
+        pass
+
+if not api_key:
+    st.error("🚨 Không tìm thấy API Key! Hãy kiểm tra lại biến môi trường OPENAI_API_KEY trên Render.")
     st.stop()
 
-# Xử lý Logic Data đã được chuyển sang Backend. Ở đây chỉ gọi OpenAI và truyền data lấy từ API vào Prompt.
+client = OpenAI(api_key=api_key)
+
+# CÁC HÀM AGENT
 def agent_planner(data_bundle):
     response = client.chat.completions.create(model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": "Trả về JSON: { 'task_breakdown': '...', 'approval_gates': '...', 'workflow_plan': '...' } Tiếng Việt."}, {"role": "user", "content": data_bundle.get('contracts', '')}], temperature=0.1)
     parsed = json.loads(response.choices[0].message.content)
@@ -82,12 +94,12 @@ def main():
                 with st.spinner("Đang truyền dữ liệu lên Backend Server..."):
                     files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
                     try:
-                        res = requests.post("http://127.0.0.1:8000/upload", files=files)
+                        # GỌI LÊN RENDER THAY VÌ LOCALHOST
+                        res = requests.post(f"{BACKEND_URL}/upload", files=files)
                         if res.status_code == 200 and res.json().get("status") == "success":
                             
-                            # Backend bóc tách xong, Frontend xin lại data để đưa cho AI và Chart
-                            st.session_state.raw_data = requests.get("http://127.0.0.1:8000/api/data/raw").json()
-                            dashboard_data = requests.get("http://127.0.0.1:8000/api/data/dashboard").json()
+                            st.session_state.raw_data = requests.get(f"{BACKEND_URL}/api/data/raw").json()
+                            dashboard_data = requests.get(f"{BACKEND_URL}/api/data/dashboard").json()
                             
                             st.session_state.df_cf = pd.DataFrame(dashboard_data['cashflow'])
                             st.session_state.df_txn = pd.DataFrame(dashboard_data['txn'])
@@ -97,7 +109,7 @@ def main():
                         else:
                             st.error("Lỗi xử lý từ Backend!")
                     except requests.exceptions.ConnectionError:
-                        st.error("🚨 Không thể kết nối tới Backend. Hãy chắc chắn Server đã được bật ở port 8000!")
+                        st.error("🚨 Không thể kết nối tới Backend trên Render!")
         st.stop()
 
     # DASHBOARD
@@ -147,7 +159,7 @@ def main():
             st.markdown("**🧠 Kiến trúc Suy luận (Reasoning Framework)**")
             st.info("""
             **Luồng xử lý dữ liệu chuẩn:**
-            1. **Giao diện (Frontend):** Nhận file Excel và gửi qua cổng 8000.
+            1. **Giao diện (Frontend):** Nhận file Excel và gửi lên Backend Cloud.
             2. **Kho Dữ liệu (Backend):** Bóc tách và giữ file trong RAM.
             3. **Tầng suy luận (Agentic Layer):** Frontend gọi API lấy Data thô từ Backend rồi ném cho 6 Agent xử lý.
             4. **Kết xuất (Output):** Khuyến nghị quyết định, tính toán độ tin cậy.
