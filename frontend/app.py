@@ -298,6 +298,7 @@ def main():
         df_txn['Nhãn'] = df_txn[risk_col].apply(lambda x: 'Nguy hiểm' if x >= 85 else 'An toàn')
         df_txn['BubbleSize'] = df_txn[risk_col].apply(lambda x: max(x, 1))
 
+        # HÀNG 1: 3 Biểu đồ cơ bản
         c1, c2, c3 = st.columns(3)
         with c1:
             fig_cf_line = px.line(df_cf, x=df_cf.columns[0], y=cash_col, title="📉 Xu hướng Dòng tiền", markers=True, color_discrete_sequence=['#3b82f6'])
@@ -316,6 +317,28 @@ def main():
 
         st.markdown("<br>", unsafe_allow_html=True)
         
+        # HÀNG 2: 2 Biểu đồ chuyên sâu
+        c4, c5 = st.columns([2, 1])
+        with c4:
+            fig_scatter = px.scatter(df_txn, x=df_txn.columns[0], y=risk_col, color='Nhãn', size='BubbleSize', title="📍 Phân tán Rủi ro (Anomaly Detection)", color_discrete_map={'Nguy hiểm': '#ff4b4b', 'An toàn': '#3b82f6'})
+            fig_scatter.update_layout(**layout_update)
+            st.plotly_chart(fig_scatter, use_container_width=True, config={'displayModeBar': False})
+        with c5:
+            avg_risk = df_txn[risk_col].mean()
+            fig_gauge = go.Figure(go.Indicator(
+                mode="gauge+number", 
+                value=avg_risk, 
+                title={'text': "🌡️ Áp lực Rủi ro", 'font': {'size': 22}},
+                domain={'x': [0, 1], 'y': [0, 1]},
+                number={'font': {'size': 50}, 'valueformat': '.1f'},
+                gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#ff4b4b" if avg_risk > 60 else "#3b82f6"}}
+            ))
+            fig_gauge.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=20, r=20, t=40, b=10), height=260)
+            st.plotly_chart(fig_gauge, use_container_width=True, config={'displayModeBar': False})
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # KHU VỰC THẺ QUYẾT ĐỊNH 
         st.markdown("### 🎯 Thẻ Quyết định (Decision Card)")
         st.warning("⚠️ **Human-in-the-loop Required:** Hệ thống phát hiện rủi ro thiếu hồ sơ pháp lý đối tác. Yêu cầu Nhà sáng lập OPC trực tiếp phê duyệt điều kiện bảo vệ trước khi chốt hợp đồng.")
         
@@ -323,9 +346,16 @@ def main():
         
         st.markdown("#### 🔐 Quyền quyết định của Nhà sáng lập OPC:")
         btn1, btn2, btn3 = st.columns(3)
-        btn1.button("✅ XÁC NHẬN ĐIỀU KIỆN & DUYỆT", use_container_width=True, type="primary")
-        btn2.button("📝 YÊU CẦU BỔ SUNG HỒ SƠ", use_container_width=True)
-        btn3.button("❌ TỪ CHỐI DỰ ÁN", use_container_width=True)
+        
+        if btn1.button("✅ XÁC NHẬN ĐIỀU KIỆN & DUYỆT", use_container_width=True, type="primary"):
+            st.success("🎉 Hợp đồng đã được phê duyệt thành công! Các Agent đang tiến hành giải ngân.")
+            st.balloons() 
+            
+        if btn2.button("📝 YÊU CẦU BỔ SUNG HỒ SƠ", use_container_width=True):
+            st.info("📨 Đã gửi yêu cầu đối tác bổ sung hồ sơ. Hệ thống sẽ tạm dừng quy trình xuất vốn.")
+            
+        if btn3.button("❌ TỪ CHỐI DỰ ÁN", use_container_width=True):
+            st.error("⛔ Dự án rủi ro cao đã bị từ chối. Đã ghi nhận lịch sử quyết định vào cơ sở dữ liệu.")
 
     with tab_chat:
         st.markdown("### 💬 Agent Command Line")
