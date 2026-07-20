@@ -17,6 +17,7 @@ st.set_page_config(page_title="OPC Mission Control", page_icon="⚡", layout="wi
 
 st.markdown("""
     <style>
+        /* Nền và giao diện chung */
         .stApp {
             background: radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.15), transparent 40%),
                         radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15), transparent 40%),
@@ -28,13 +29,50 @@ st.markdown("""
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        .stTabs [data-baseweb="tab-list"] { gap: 15px; border-bottom: none !important; background: transparent !important; padding: 10px 0; }
-        .stTabs [data-baseweb="tab"] { padding: 10px 24px; background-color: rgba(255, 255, 255, 0.03); border-radius: 50px !important; color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: all 0.3s ease-in-out; }
-        .stTabs [aria-selected="true"] { background: rgba(59, 130, 246, 0.25) !important; color: white !important; border: 1px solid rgba(150, 200, 255, 0.4) !important; box-shadow: inset 0 2px 10px rgba(255, 255, 255, 0.2), 0 8px 20px rgba(59, 130, 246, 0.3) !important; }
-        .stTabs [data-baseweb="tab-highlight"] { display: none !important; }
+        
+        /* ========================================= */
+        /* FIX CSS CHO THANH TAB HÌNH OVAL (PILL-SHAPE) */
+        /* ========================================= */
+        
+        /* Chỉnh khoảng cách giữa các tab */
+        div[data-testid="stTabs"] div[data-baseweb="tab-list"] { 
+            gap: 12px; 
+            border-bottom: none !important;
+        }
+        
+        /* Bo tròn các tab chưa được chọn */
+        div[data-testid="stTabs"] button[data-baseweb="tab"] { 
+            padding: 8px 24px !important; 
+            background-color: rgba(255, 255, 255, 0.05) !important; 
+            border-radius: 50px !important; /* Đây là dòng tạo hình oval */
+            color: #94a3b8 !important; 
+            border: 1px solid rgba(255, 255, 255, 0.08) !important; 
+            transition: all 0.3s ease-in-out; 
+        }
+        
+        /* Hiệu ứng hover chuột */
+        div[data-testid="stTabs"] button[data-baseweb="tab"]:hover {
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            background-color: rgba(255, 255, 255, 0.08) !important;
+        }
+        
+        /* Hiệu ứng sáng lên khi click chọn (Active Tab) */
+        div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] { 
+            background: rgba(59, 130, 246, 0.25) !important; 
+            color: white !important; 
+            border: 1px solid rgba(150, 200, 255, 0.4) !important; 
+            box-shadow: inset 0 2px 10px rgba(255, 255, 255, 0.2), 0 8px 20px rgba(59, 130, 246, 0.3) !important; 
+        }
+        
+        /* Ẩn cái gạch ngang màu đỏ mặc định của Streamlit */
+        div[data-testid="stTabs"] div[data-baseweb="tab-highlight"] { display: none !important; }
+        /* ========================================= */
+
+        /* Giao diện Metric và Alert */
         div[data-testid="metric-container"] { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5% 10%; border-radius: 24px; box-shadow: inset 0 2px 5px rgba(255,255,255,0.05), 0 8px 32px 0 rgba(0, 0, 0, 0.2); }
         .stAlert, .stInfo, .stSuccess, .stWarning, .stError { background: rgba(255, 255, 255, 0.05) !important; backdrop-filter: blur(15px) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; border-radius: 16px !important; color: #f1f5f9 !important; box-shadow: inset 0 1px 4px rgba(255,255,255,0.1); }
         
+        /* Animation nhấp nháy đỏ cho Risk Agent */
         @keyframes blink {
             0% { background-color: rgba(255, 75, 75, 0.2); border: 2px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
             50% { background-color: rgba(255, 75, 75, 0.4); border: 2px solid #ff1a1a; box-shadow: 0 0 20px #ff1a1a; }
@@ -53,7 +91,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
 # ĐỊA CHỈ BACKEND TRÊN RENDER
 BACKEND_URL = "https://backend-qm8g.onrender.com"
 
