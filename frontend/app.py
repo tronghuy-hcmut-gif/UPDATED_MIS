@@ -94,7 +94,6 @@ def main():
                 with st.spinner("Đang truyền dữ liệu lên Backend Server..."):
                     files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
                     try:
-                        # GỌI LÊN RENDER THAY VÌ LOCALHOST
                         res = requests.post(f"{BACKEND_URL}/upload", files=files)
                         if res.status_code == 200 and res.json().get("status") == "success":
                             
@@ -112,7 +111,7 @@ def main():
                         st.error("🚨 Không thể kết nối tới Backend trên Render!")
         st.stop()
 
-    # DASHBOARD
+    # DASHBOARD & DATA
     raw_data = st.session_state.raw_data
     df_cf = st.session_state.df_cf
     df_txn = st.session_state.df_txn
@@ -125,15 +124,45 @@ def main():
             st.session_state.clear() 
             st.rerun()
 
+    # KHU VỰC LOAD ĐỘNG CÁC AGENT (TẠO CẢM GIÁC THỜI GIAN THỰC)
     if "ai_completed" not in st.session_state:
-        with st.spinner("Đang nạp Data từ Backend và kích hoạt Đa Tác Nhân..."):
-            st.session_state.p_rep = agent_planner(raw_data)
-            st.session_state.f_rep = agent_finance(raw_data)
-            st.session_state.r_rep = agent_risk_compliance(raw_data)
-            st.session_state.b_rep = agent_banking_integration(raw_data)
-            st.session_state.final_dec = agent_decision(f"{st.session_state.p_rep}\n\n[TÀI CHÍNH]\n{st.session_state.f_rep}\n\n[RỦI RO]\n{st.session_state.r_rep}")
-            st.session_state.ai_completed = True
+        st.markdown("<h3 style='text-align: center; color: #3b82f6;'>⚙️ HỆ THỐNG ĐANG PHÂN TÍCH DỮ LIỆU...</h3>", unsafe_allow_html=True)
+        st.write("Vui lòng đợi trong giây lát, các đặc vụ AI đang xử lý file của bạn.")
+        
+        # Tạo 4 thanh tiến trình trống trên màn hình chờ
+        bar_p = st.progress(5, text="⏳ Planner Agent: Đang khởi động...")
+        bar_f = st.progress(5, text="⏳ Finance Agent: Đang khởi động...")
+        bar_r = st.progress(5, text="⏳ Risk Agent: Đang khởi động...")
+        bar_b = st.progress(5, text="⏳ Banking Agent: Đang khởi động...")
 
+        # Chạy Planner Agent
+        bar_p.progress(40, text="🔄 Planner Agent: Đang phân rã quy trình...")
+        st.session_state.p_rep = agent_planner(raw_data)
+        bar_p.progress(100, text="✅ Planner Agent: Đã hoàn tất (100%)")
+
+        # Chạy Finance Agent
+        bar_f.progress(40, text="🔄 Finance Agent: Đang phân tích dòng tiền...")
+        st.session_state.f_rep = agent_finance(raw_data)
+        bar_f.progress(100, text="✅ Finance Agent: Đã hoàn tất (100%)")
+
+        # Chạy Risk Agent
+        bar_r.progress(40, text="🔄 Risk Agent: Đang quét dị thường giao dịch...")
+        st.session_state.r_rep = agent_risk_compliance(raw_data)
+        bar_r.progress(100, text="✅ Risk Agent: Đã hoàn tất (100%)")
+
+        # Chạy Banking Agent
+        bar_b.progress(40, text="🔄 Banking Agent: Đang đối chiếu sản phẩm...")
+        st.session_state.b_rep = agent_banking_integration(raw_data)
+        bar_b.progress(100, text="✅ Banking Agent: Đã hoàn tất (100%)")
+
+        # Chốt Decision
+        with st.spinner("🧠 Decision Agent đang tổng hợp phán quyết cuối cùng..."):
+            st.session_state.final_dec = agent_decision(f"{st.session_state.p_rep}\n\n[TÀI CHÍNH]\n{st.session_state.f_rep}\n\n[RỦI RO]\n{st.session_state.r_rep}")
+        
+        st.session_state.ai_completed = True
+        st.rerun() 
+
+    # CÁC TAB HIỂN THỊ CHÍNH
     tab_overview, tab_agents, tab_analysis, tab_dashboard, tab_chat = st.tabs([
         "🌐 Overview", "🤖 Agents Fleet", "🧠 Agent Analysis", "📊 Power Dashboard", "💬 Office & Chat"
     ])
@@ -143,17 +172,17 @@ def main():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("LLM Engine", "gpt-4o", "Core API Online")
         m2.metric("Lực lượng Agent", "6 Chuyên gia", "Đang trực chiến")
-        m3.metric("Tiến trình Task", "85% Hoàn thành", "Tốc độ xử lý +12%")
+        m3.metric("Tiến trình Task", "100% Hoàn thành", "Tốc độ xử lý +12%")
         m4.metric("Tài nguyên Token", "1,245,000", "Trong mức an toàn")
         
         st.divider()
         col_act, col_arch = st.columns([1, 1])
         with col_act:
             st.markdown("**🔄 Chuỗi nhiệm vụ thời gian thực (Recent Activities)**")
-            st.progress(100, text="Data Agent: Đã nhận dữ liệu từ Backend Server (100%)")
-            st.progress(100, text="Planner Agent: Đã khởi tạo cấu trúc Workflow (100%)")
-            st.progress(80, text="Risk Agent: Đang quét dị thường giao dịch (80%)")
-            st.progress(45, text="Finance Agent: Đang dự phóng hụt vốn dòng tiền (45%)")
+            st.progress(100, text="✅ Data Agent: Đã nhận dữ liệu từ Backend Server (100%)")
+            st.progress(100, text="✅ Planner Agent: Đã khởi tạo cấu trúc Workflow (100%)")
+            st.progress(100, text="✅ Risk Agent: Đã hoàn tất rà soát rủi ro (100%)")
+            st.progress(100, text="✅ Finance Agent: Đã hoàn tất dự phóng dòng tiền (100%)")
             
         with col_arch:
             st.markdown("**🧠 Kiến trúc Suy luận (Reasoning Framework)**")
