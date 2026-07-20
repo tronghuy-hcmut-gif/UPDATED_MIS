@@ -67,7 +67,7 @@ if not api_key:
         pass
 
 if not api_key:
-    st.error("🚨 Missing OPENAI_API_KEY environment variable!")
+    st.error("🚨 Không tìm thấy API Key! Hãy kiểm tra lại biến môi trường OPENAI_API_KEY.")
     st.stop()
 
 client = OpenAI(api_key=api_key)
@@ -109,7 +109,7 @@ def draw_architecture(active_agents=[], alert=False):
 def agent_planner(data_bundle):
     response = client.chat.completions.create(model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": "Trả về JSON: { 'task_breakdown': '...', 'approval_gates': '...', 'workflow_plan': '...' } Tiếng Việt."}, {"role": "user", "content": data_bundle.get('contracts', '')}], temperature=0.1)
     parsed = json.loads(response.choices[0].message.content)
-    content = f"**Objective:** {parsed.get('task_breakdown', '')}\n\n**Workflow:** {parsed.get('workflow_plan', '')}"
+    content = f"**Mục tiêu:** {parsed.get('task_breakdown', '')}\n\n**Workflow:** {parsed.get('workflow_plan', '')}"
     return content, response.usage.total_tokens
 
 def agent_finance(data_bundle):
@@ -123,12 +123,12 @@ def agent_risk_compliance(data_bundle):
     return response.choices[0].message.content, response.usage.total_tokens
 
 def agent_banking_integration(data_bundle):
-    system_prompt = "Bạn là Giám đốc Quan hệ Khách hàng Doanh nghiệp. Phân tích danh sách sản phẩm ngân hàng (data) và đề xuất đối tác tài trợ vốn tối ưu nhất. Trình bày Markdown. Ngôn từ chuyên nghiệp."
+    system_prompt = "Bạn là Giám đốc Quan hệ Khách hàng Doanh nghiệp. Phân tích danh sách sản phẩm ngân hàng (data) và đề xuất đối tác tài trợ vốn tối ưu nhất. Trình bày Markdown. Ngôn từ chuyên nghiệp bằng Tiếng Việt."
     response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": f"Dữ liệu ngân hàng: {data_bundle.get('bank_prod', '')}"}], temperature=0.3)
     return response.choices[0].message.content, response.usage.total_tokens
 
 def agent_decision(full_packet):
-    sys_prompt = "Đóng vai Tổng Giám Đốc OPC. Trả về Decision Card với cấu trúc bắt buộc: 1. Phương án (Chấp nhận hay Từ chối hợp đồng). 2. Ba lý do chính yếu. 3. Một điều kiện bắt buộc cần Nhà sáng lập xác nhận (protection condition). Kèm tỷ lệ Confidence Score %."
+    sys_prompt = "Đóng vai Tổng Giám Đốc OPC. Trả về Decision Card bằng Tiếng Việt với cấu trúc bắt buộc: 1. Phương án (Chấp nhận hay Từ chối hợp đồng). 2. Ba lý do chính yếu. 3. Một điều kiện bắt buộc cần Nhà sáng lập xác nhận (protection condition). Kèm tỷ lệ Confidence Score %."
     response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": full_packet}], temperature=0.1)
     return response.choices[0].message.content, response.usage.total_tokens
 
@@ -151,7 +151,7 @@ def main():
             
             uploaded_file = st.file_uploader("", type=["xlsx"])
             if uploaded_file is not None:
-                with st.spinner("Uploading data to Backend..."):
+                with st.spinner("Đang truyền dữ liệu lên Backend Server..."):
                     files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
                     try:
                         res = requests.post(f"{BACKEND_URL}/upload", files=files)
@@ -166,9 +166,9 @@ def main():
                             st.session_state.data_loaded = True
                             st.rerun() 
                         else:
-                            st.error("Backend processing failed!")
+                            st.error("Lỗi xử lý từ Backend!")
                     except requests.exceptions.ConnectionError:
-                        st.error("🚨 Cannot connect to Render Backend!")
+                        st.error("🚨 Không thể kết nối tới Backend trên Render!")
         st.stop()
 
     raw_data = st.session_state.raw_data
@@ -179,7 +179,7 @@ def main():
     with head_col1:
         st.markdown("## ⚡ OPC Multi-Agent Command Center")
     with head_col2:
-        if st.button("🔄 Close Dashboard", use_container_width=True):
+        if st.button("🔄 Đóng Dashboard", use_container_width=True):
             st.session_state.clear() 
             st.rerun()
 
@@ -187,7 +187,7 @@ def main():
     # KHU VỰC LOAD ĐỘNG CỦA 6 AGENTS
     # ==========================================
     if "ai_completed" not in st.session_state:
-        st.markdown("<h3 style='text-align: center; color: #3b82f6;'>⚙️ SYSTEM IS ANALYZING DATA...</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center; color: #3b82f6;'>⚙️ HỆ THỐNG ĐANG PHÂN TÍCH ĐA TÁC NHÂN...</h3>", unsafe_allow_html=True)
         st.write("")
         
         start_time = time.time()
@@ -200,56 +200,56 @@ def main():
             graph_placeholder.graphviz_chart(draw_architecture())
 
         with col_log:
-            with st.status("Initializing Agentic Workflow...", expanded=True) as status:
+            with st.status("Khởi tạo luồng Agentic Workflow...", expanded=True) as status:
                 # 1. Data Agent
                 graph_placeholder.graphviz_chart(draw_architecture(['Data']))
-                st.write("⏳ **Data Agent:** Parsing Pandas data...")
+                st.write("⏳ **Data Agent:** Đang bóc tách và ánh xạ dữ liệu Pandas...")
                 time.sleep(1)
-                st.write("✅ **Data Agent:** Data preparation completed.")
+                st.write("✅ **Data Agent:** Chuẩn bị dữ liệu hoàn tất.")
                 
                 # 2. Planner Agent
                 graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner']))
-                st.write("⏳ **Planner Agent:** Designing Workflow structure...")
+                st.write("⏳ **Planner Agent:** Đang thiết kế cấu trúc Workflow...")
                 rep_p, tok_p = agent_planner(raw_data) 
                 st.session_state.p_rep = rep_p
                 st.session_state.total_tokens += tok_p
-                st.write("✅ **Planner Agent:** Workflow breakdown completed.")
+                st.write("✅ **Planner Agent:** Phân rã quy trình xong.")
 
                 # 3. Finance Agent
                 graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner', 'Finance']))
-                st.write("⏳ **Finance Agent:** Running Cashflow projection...")
+                st.write("⏳ **Finance Agent:** Đang chạy mô hình dự phóng dòng tiền (Cashflow)...")
                 rep_f, tok_f = agent_finance(raw_data) 
                 st.session_state.f_rep = rep_f
                 st.session_state.total_tokens += tok_f
-                st.write("✅ **Finance Agent:** Financial report ready.")
+                st.write("✅ **Finance Agent:** Báo cáo tài chính sẵn sàng.")
 
                 # 4. Risk Agent (Có báo động đỏ)
                 graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner', 'Finance', 'Risk'], alert=True))
-                st.write("⏳ **Risk Agent:** Scanning for anomalies...")
+                st.write("⏳ **Risk Agent:** Đang quét điểm nghẽn và dị thường giao dịch...")
                 time.sleep(1)
-                st.markdown('<span style="color:#ff4b4b; font-weight:bold;">🚨 Risk Agent: MISSING LEGAL DOCUMENTS DETECTED!</span>', unsafe_allow_html=True)
+                st.markdown('<span style="color:#ff4b4b; font-weight:bold;">🚨 Risk Agent: PHÁT HIỆN THIẾU DỮ LIỆU PHÁP LÝ!</span>', unsafe_allow_html=True)
                 rep_r, tok_r = agent_risk_compliance(raw_data) 
                 st.session_state.r_rep = rep_r
                 st.session_state.total_tokens += tok_r
-                st.write("✅ **Risk Agent:** Compliance check done (1 Risk Flag logged).")
+                st.write("✅ **Risk Agent:** Đối chiếu Compliance xong (Ghi nhận 1 Risk Flag).")
 
                 # 5. Banking Agent
                 graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner', 'Finance', 'Risk', 'Banking'], alert=True))
-                st.write("⏳ **Banking Agent:** Pinging Core Banking Server...")
+                st.write("⏳ **Banking Agent:** Đang ping tới Server Core Banking...")
                 rep_b, tok_b = agent_banking_integration(raw_data) 
                 st.session_state.b_rep = rep_b
                 st.session_state.total_tokens += tok_b
-                st.write("✅ **Banking Agent:** Product mapping successful.")
+                st.write("✅ **Banking Agent:** Khớp nối sản phẩm thành công.")
 
                 # 6. Decision Agent
                 graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner', 'Finance', 'Risk', 'Banking', 'Decision'], alert=True))
-                st.write("⏳ **Decision Agent:** Calculating decision weights...")
+                st.write("⏳ **Decision Agent:** Đang tính toán trọng số quyết định...")
                 rep_dec, tok_dec = agent_decision(f"{st.session_state.p_rep}\n\n[TÀI CHÍNH]\n{st.session_state.f_rep}\n\n[RỦI RO]\n{st.session_state.r_rep}") 
                 st.session_state.final_dec = rep_dec
                 st.session_state.total_tokens += tok_dec
-                st.write("✅ **Decision Agent:** Decision Card generated.")
+                st.write("✅ **Decision Agent:** Đã xuất Decision Card.")
                 
-                status.update(label="Data Analysis Completed!", state="complete", expanded=False)
+                status.update(label="Hoàn tất phân tích dữ liệu!", state="complete", expanded=False)
 
         end_time = time.time()
         st.session_state.processing_time = round(end_time - start_time, 2)
@@ -257,7 +257,7 @@ def main():
         st.rerun() 
 
     # ==========================================
-    # CÁC TAB HIỂN THỊ CHÍNH (ĐÃ FIX TÊN)
+    # CÁC TAB HIỂN THỊ CHÍNH (ĐỀ MỤC TIẾNG ANH, NỘI DUNG TIẾNG VIỆT)
     # ==========================================
     tab_overview, tab_agents, tab_analysis, tab_dashboard, tab_chat = st.tabs([
         "🌐 System Overview", "🤖 Agents Fleet", "🧠 Agent Reasoning", "📊 Power Dashboard", "💬 Command Line"
@@ -267,20 +267,20 @@ def main():
         st.markdown("### 📡 System Overview")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("LLM Engine", "gpt-4o", "Core API Online")
-        m2.metric("Active Agents", "6 Agents", "Running")
-        m3.metric("Processing Time", f"{st.session_state.processing_time}s", "100% Completed")
-        m4.metric("Token Usage", f"{st.session_state.total_tokens:,}", "Real-time cost")
+        m2.metric("Active Agents", "6 Agents", "Đang trực chiến")
+        m3.metric("Processing Time", f"{st.session_state.processing_time}s", "Hoàn thành 100%")
+        m4.metric("Token Usage", f"{st.session_state.total_tokens:,}", "Mức tiêu thụ thực tế")
         
         st.divider()
         col_act, col_arch = st.columns([1, 1.5])
         with col_act:
             st.markdown("**🔄 Execution Pipeline**")
-            st.progress(100, text="✅ Data Agent: Parsed raw data (100%)")
-            st.progress(100, text="✅ Planner Agent: Initialized workflow (100%)")
-            st.progress(100, text="✅ Finance Agent: Generated financial metrics (100%)")
-            st.progress(100, text="✅ Risk Agent: Flagged compliance issues (100%)")
-            st.progress(100, text="✅ Banking Agent: Mapped API endpoints (100%)")
-            st.progress(100, text="✅ Decision Agent: Exported Decision Card (100%)")
+            st.progress(100, text="✅ Data Agent: Đã nạp và xử lý dữ liệu thô (100%)")
+            st.progress(100, text="✅ Planner Agent: Đã khởi tạo cấu trúc Workflow (100%)")
+            st.progress(100, text="✅ Finance Agent: Đã xuất 3 chỉ số tài chính (100%)")
+            st.progress(100, text="✅ Risk Agent: Cảnh báo thiếu hồ sơ pháp lý (100%)")
+            st.progress(100, text="✅ Banking Agent: Đã mapping sản phẩm ngân hàng (100%)")
+            st.progress(100, text="✅ Decision Agent: Đã xuất Decision Card (100%)")
             
         with col_arch:
             st.markdown("**🧠 System Reasoning Architecture**")
@@ -291,32 +291,27 @@ def main():
         tasks_risk = len(df_txn) 
         tasks_finance = len(df_cf)
         
-        # ROW 1: 3 AGENTS
         a1, a2, a3 = st.columns(3)
-        with a1: st.success("**📦 Data Agent**\n\n- Processed: Raw Input Data\n- Status: Completed")
-        with a2: st.success("**🎯 Planner Agent**\n\n- Processed: 1 Workflow Plan\n- Status: Completed")
-        with a3: st.info(f"**📊 Finance Agent**\n\n- Processed: {tasks_finance} records\n- Status: Completed")
+        with a1: st.success("**📦 Data Agent**\n\n- Đã xử lý: Dữ liệu thô\n- Trạng thái: Hoàn tất")
+        with a2: st.success("**🎯 Planner Agent**\n\n- Đã xử lý: 1 Kế hoạch Workflow\n- Trạng thái: Hoàn tất")
+        with a3: st.info(f"**📊 Finance Agent**\n\n- Đã xử lý: {tasks_finance} biến động\n- Trạng thái: Hoàn tất")
         
         st.write("")
         
-        # ROW 2: 3 AGENTS
         a4, a5, a6 = st.columns(3)
-        with a4: st.warning(f"**🛡️ Risk Agent**\n\n- Processed: {tasks_risk} transactions\n- Alert: Missing Documents")
-        with a5: st.success("**🏦 Banking Agent**\n\n- Processed: Bank Products API\n- Status: Completed")
-        with a6: st.success("**⚖️ Decision Agent**\n\n- Processed: 1 Decision Card\n- Status: Completed")
+        with a4: st.warning(f"**🛡️ Risk Agent**\n\n- Đã xử lý: {tasks_risk} giao dịch\n- Cảnh báo: Thiếu dữ liệu pháp lý")
+        with a5: st.success("**🏦 Banking Agent**\n\n- Đã xử lý: Mapping API Ngân hàng\n- Trạng thái: Hoàn tất")
+        with a6: st.success("**⚖️ Decision Agent**\n\n- Đã xử lý: 1 Thẻ Quyết định\n- Trạng thái: Hoàn tất")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # REAL-TIME HEATMAP LOGIC
         try:
-            # GỌI API THỰC TẾ (Nếu render backend đã viết route này)
             res_heatmap = requests.get(f"{BACKEND_URL}/api/system/workload", timeout=3)
             if res_heatmap.status_code == 200:
                 z_dynamic = res_heatmap.json().get("workload_matrix")
             else:
-                raise Exception("API not returning 200")
+                raise Exception("API Error")
         except:
-            # FALLBACK MẶC ĐỊNH nếu Backend chưa có Endpoint này (Giữ form biểu đồ không bị sập)
             z_dynamic = [
                 [10, 15, 20, 25, 30],
                 [12, 18, 22, 28, 35],
@@ -341,17 +336,17 @@ def main():
 
     with tab_analysis:
         st.markdown("### 🧠 Agent Reasoning Process")
-        st.success("**🎯 Planner Agent:** Initialized task breakdown.")
-        with st.expander("📄 View Workflow Plan"): st.markdown(st.session_state.p_rep)
+        st.success("**🎯 Planner Agent:** Khởi tạo cấu trúc phân rã công việc.")
+        with st.expander("📄 Xem chi tiết Bản Kế Hoạch (Workflow Plan)"): st.markdown(st.session_state.p_rep)
             
-        st.info("**📊 Finance Agent:** Evaluated key metrics and capital needs.")
-        with st.expander("📄 View Financial Analysis"): st.markdown(st.session_state.f_rep)
+        st.info("**📊 Finance Agent:** Đánh giá 3 chỉ số chính và nhu cầu vốn.")
+        with st.expander("📄 Xem chi tiết Phân Tích Tài Chính (Financial Analysis)"): st.markdown(st.session_state.f_rep)
             
-        st.warning("**🛡️ Risk Agent:** Classified Risk Level, detected missing documents.")
-        with st.expander("📄 View Risk & Compliance Report"): st.markdown(st.session_state.r_rep)
+        st.warning("**🛡️ Risk Agent:** Phân loại Risk Level, phát hiện hồ sơ thiếu.")
+        with st.expander("📄 Xem chi tiết Rà Soát Rủi Ro (Risk & Compliance Report)"): st.markdown(st.session_state.r_rep)
             
-        st.success("**🏦 Banking Agent:** Mapped optimal banking products.")
-        with st.expander("📄 View Banking Integration Info"): st.markdown(st.session_state.b_rep)
+        st.success("**🏦 Banking Agent:** Đối chiếu sản phẩm ngân hàng tài trợ vốn.")
+        with st.expander("📄 Xem chi tiết Khuyến Nghị Vốn (Banking Integration)"): st.markdown(st.session_state.b_rep)
 
     with tab_dashboard:
         layout_update = dict(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=10, r=10, t=30, b=10), height=260)
@@ -361,7 +356,7 @@ def main():
         
         risk_col = df_txn.columns[-1]
         df_txn[risk_col] = pd.to_numeric(df_txn[risk_col], errors='coerce').fillna(0)
-        df_txn['Label'] = df_txn[risk_col].apply(lambda x: 'High Risk' if x >= 85 else 'Safe')
+        df_txn['Label'] = df_txn[risk_col].apply(lambda x: 'Nguy hiểm' if x >= 85 else 'An toàn')
         df_txn['BubbleSize'] = df_txn[risk_col].apply(lambda x: max(x, 1))
 
         c1, c2, c3 = st.columns(3)
@@ -371,7 +366,7 @@ def main():
             st.plotly_chart(fig_cf_line, use_container_width=True, config={'displayModeBar': False})
         with c2:
             risk_counts = df_txn['Label'].value_counts().reset_index()
-            fig_pie = px.pie(risk_counts, values='count', names='Label', title="🚨 Risk Distribution", hole=0.6, color='Label', color_discrete_map={'High Risk': '#ff4b4b', 'Safe': '#3b82f6'})
+            fig_pie = px.pie(risk_counts, values='count', names='Label', title="🚨 Risk Distribution", hole=0.6, color='Label', color_discrete_map={'Nguy hiểm': '#ff4b4b', 'An toàn': '#3b82f6'})
             fig_pie.update_layout(**layout_update, showlegend=False)
             st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
         with c3:
@@ -384,7 +379,7 @@ def main():
         
         c4, c5 = st.columns([2, 1])
         with c4:
-            fig_scatter = px.scatter(df_txn, x=df_txn.columns[0], y=risk_col, color='Label', size='BubbleSize', title="📍 Anomaly Detection Scatter", color_discrete_map={'High Risk': '#ff4b4b', 'Safe': '#3b82f6'})
+            fig_scatter = px.scatter(df_txn, x=df_txn.columns[0], y=risk_col, color='Label', size='BubbleSize', title="📍 Anomaly Detection Scatter", color_discrete_map={'Nguy hiểm': '#ff4b4b', 'An toàn': '#3b82f6'})
             fig_scatter.update_layout(**layout_update)
             st.plotly_chart(fig_scatter, use_container_width=True, config={'displayModeBar': False})
         with c5:
@@ -402,53 +397,52 @@ def main():
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # KHU VỰC THẺ QUYẾT ĐỊNH
         st.markdown("### 🎯 Decision Card")
         
-        st.markdown('<div class="red-alert">🚨 SYSTEM HALTED: MISSING PARTNER LEGAL DOCUMENTS!</div>', unsafe_allow_html=True)
+        st.markdown('<div class="red-alert">🚨 HỆ THỐNG TẠM DỪNG: PHÁT HIỆN THIẾU HỒ SƠ PHÁP LÝ ĐỐI TÁC!</div>', unsafe_allow_html=True)
         
-        st.warning("⚠️ **Human-in-the-loop Required:** Founder approval is mandatory for protective conditions before final contract execution.")
+        st.warning("⚠️ **Human-in-the-loop Required:** Yêu cầu Founder trực tiếp phê duyệt điều kiện bảo vệ trước khi chốt hợp đồng.")
         
         st.info(st.session_state.final_dec) 
         
-        st.markdown("#### 🔐 Founder Executive Actions:")
+        st.markdown("#### 🔐 Quyền quyết định của Nhà sáng lập OPC:")
         btn1, btn2, btn3 = st.columns(3)
         
-        if btn1.button("✅ ACKNOWLEDGE & APPROVE", use_container_width=True, type="primary"):
-            st.success("🎉 Contract approved successfully! Proceeding to disbursement.")
+        if btn1.button("✅ XÁC NHẬN ĐIỀU KIỆN & DUYỆT", use_container_width=True, type="primary"):
+            st.success("🎉 Hợp đồng đã được phê duyệt thành công! Các Agent đang tiến hành giải ngân.")
             st.balloons() 
             
-        if btn2.button("📝 REQUEST MISSING DOCUMENTS", use_container_width=True):
-            st.info("📨 Document request sent to partner. Workflow paused.")
+        if btn2.button("📝 YÊU CẦU BỔ SUNG HỒ SƠ", use_container_width=True):
+            st.info("📨 Đã gửi yêu cầu đối tác bổ sung hồ sơ. Hệ thống tạm dừng quy trình xuất vốn.")
             
-        if btn3.button("❌ REJECT PROJECT", use_container_width=True):
-            st.error("⛔ High-risk project rejected. Decision logged to database.")
+        if btn3.button("❌ TỪ CHỐI DỰ ÁN", use_container_width=True):
+            st.error("⛔ Dự án rủi ro cao đã bị từ chối. Đã ghi nhận lịch sử quyết định vào cơ sở dữ liệu.")
 
     with tab_chat:
         st.markdown("### 💬 Command Line Interface")
-        agent_select = st.selectbox("Select Agent Interface:", ["Master Orchestrator", "Data Agent", "Planner Agent", "Finance Agent", "Risk Agent", "Banking Agent", "Decision Agent"])
+        agent_select = st.selectbox("Chọn Agent để tương tác:", ["Master Orchestrator", "Data Agent", "Planner Agent", "Finance Agent", "Risk Agent", "Banking Agent", "Decision Agent"])
         
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = []
             
-        if st.button("🧹 Clear Terminal"):
+        if st.button("🧹 Xóa hội thoại"):
             st.session_state.chat_history = []
             st.rerun()
 
         chat_container = st.container(height=400)
         with chat_container:
-            st.chat_message("assistant").write(f"System Online. **{agent_select}** is ready for commands.")
+            st.chat_message("assistant").write(f"Hệ thống trực tuyến. **{agent_select}** đã sẵn sàng nhận lệnh.")
             for msg in st.session_state.chat_history:
                 st.chat_message(msg["role"]).write(msg["content"])
 
-        prompt = st.chat_input(f"Send command to {agent_select}...")
+        prompt = st.chat_input(f"Giao task cho {agent_select}...")
         if prompt:
             st.session_state.chat_history.append({"role": "user", "content": prompt})
             with chat_container:
                 st.chat_message("user").write(prompt)
                 with st.chat_message("assistant"):
-                    with st.spinner(f"Awaiting response from {agent_select}..."):
-                        sys_context = f"You are {agent_select} in the OPC Mission Control system. Answer the user professionally."
+                    with st.spinner(f"Đang chờ phản hồi từ {agent_select}..."):
+                        sys_context = f"Bạn là {agent_select} trong hệ thống. Hãy trả lời câu hỏi của người dùng bằng Tiếng Việt một cách chuyên nghiệp."
                         api_messages = [{"role": "system", "content": sys_context}]
                         for m in st.session_state.chat_history:
                             api_messages.append({"role": m["role"], "content": m["content"]})
