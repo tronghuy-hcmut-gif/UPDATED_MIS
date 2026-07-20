@@ -56,7 +56,7 @@ if not api_key:
 client = OpenAI(api_key=api_key)
 
 # ==========================================
-# CÁC HÀM AGENT (ĐÃ CẬP NHẬT ĐỂ ĐẾM TOKEN)
+# CÁC HÀM AGENT (CẬP NHẬT ĐỂ ĐẾM TOKEN)
 # ==========================================
 def agent_planner(data_bundle):
     response = client.chat.completions.create(model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": "Trả về JSON: { 'task_breakdown': '...', 'approval_gates': '...', 'workflow_plan': '...' } Tiếng Việt."}, {"role": "user", "content": data_bundle.get('contracts', '')}], temperature=0.1)
@@ -138,7 +138,7 @@ def main():
             st.rerun()
 
     # ==========================================
-    # KHU VỰC LOAD ĐỘNG CỦA ĐỦ 6 AGENTS
+    # KHU VỰC LOAD ĐỘNG CỦA 6 AGENTS (KỊCH BẢN RIÊNG BIỆT)
     # ==========================================
     if "ai_completed" not in st.session_state:
         st.markdown("<h3 style='text-align: center; color: #3b82f6;'>⚙️ HỆ THỐNG ĐANG PHÂN TÍCH DỮ LIỆU...</h3>", unsafe_allow_html=True)
@@ -148,53 +148,65 @@ def main():
         start_time = time.time()
         st.session_state.total_tokens = 0
 
-        # Tạo 6 thanh tiến trình trống
-        bar_d = st.progress(5, text="⏳ Data Agent: Đang chờ dữ liệu thô...")
-        bar_p = st.progress(5, text="⏳ Planner Agent: Đang khởi động...")
-        bar_f = st.progress(5, text="⏳ Finance Agent: Đang khởi động...")
-        bar_r = st.progress(5, text="⏳ Risk Agent: Đang khởi động...")
-        bar_b = st.progress(5, text="⏳ Banking Agent: Đang khởi động...")
-        bar_dec = st.progress(5, text="⏳ Decision Agent: Đang chờ dữ liệu đầu vào...")
+        # Tạo 6 thanh tiến trình trống ở mức 0%
+        bar_d = st.progress(0, text="⏳ Data Agent: Standby...")
+        bar_p = st.progress(0, text="⏳ Planner Agent: Standby...")
+        bar_f = st.progress(0, text="⏳ Finance Agent: Standby...")
+        bar_r = st.progress(0, text="⏳ Risk Agent: Standby...")
+        bar_b = st.progress(0, text="⏳ Banking Agent: Standby...")
+        bar_dec = st.progress(0, text="⏳ Decision Agent: Standby...")
 
-        # 1. Chạy Data Agent (Mô phỏng tiền xử lý dataframe)
-        bar_d.progress(50, text="🔄 Data Agent: Đang bóc tách và ánh xạ Pandas DataFrame...")
-        time.sleep(0.8) # Data đã load ở bước trước, mô phỏng delay
+        # 1. Kịch bản Data Agent: Chạy mượt và nhanh (Mô phỏng load file)
+        for p in [15, 45, 75, 90]:
+            bar_d.progress(p, text=f"🔄 Data Agent: Đang bóc tách và ánh xạ Pandas DataFrame ({p}%)...")
+            time.sleep(random.uniform(0.1, 0.2))
         bar_d.progress(100, text="✅ Data Agent: Đã chuẩn bị dữ liệu xong (100%)")
 
-        # 2. Chạy Planner Agent
-        bar_p.progress(40, text="🔄 Planner Agent: Đang phân rã quy trình...")
-        rep_p, tok_p = agent_planner(raw_data)
+        # 2. Kịch bản Planner Agent: Nhảy bậc (Đọc data -> Suy nghĩ -> Chốt)
+        bar_p.progress(20, text="🔄 Planner Agent: Đang phân tích yêu cầu từ dữ liệu thô...")
+        time.sleep(0.3)
+        bar_p.progress(65, text="🔄 Planner Agent: Đang thiết kế cấu trúc Workflow...")
+        rep_p, tok_p = agent_planner(raw_data) # Gọi API thật
         st.session_state.p_rep = rep_p
         st.session_state.total_tokens += tok_p
-        bar_p.progress(100, text="✅ Planner Agent: Đã hoàn tất (100%)")
+        bar_p.progress(100, text="✅ Planner Agent: Đã phân rã quy trình xong (100%)")
 
-        # 3. Chạy Finance Agent
-        bar_f.progress(40, text="🔄 Finance Agent: Đang phân tích dòng tiền...")
-        rep_f, tok_f = agent_finance(raw_data)
+        # 3. Kịch bản Finance Agent: Đứng khựng để tính toán 
+        bar_f.progress(15, text="🔄 Finance Agent: Đang quét bảng cân đối kế toán...")
+        time.sleep(0.2)
+        bar_f.progress(50, text="🔄 Finance Agent: Đang chạy mô hình dự phóng dòng tiền (Cashflow)...")
+        rep_f, tok_f = agent_finance(raw_data) # Gọi API thật
         st.session_state.f_rep = rep_f
         st.session_state.total_tokens += tok_f
-        bar_f.progress(100, text="✅ Finance Agent: Đã hoàn tất (100%)")
+        bar_f.progress(100, text="✅ Finance Agent: Báo cáo tài chính sẵn sàng (100%)")
 
-        # 4. Chạy Risk Agent
-        bar_r.progress(40, text="🔄 Risk Agent: Đang quét dị thường giao dịch...")
-        rep_r, tok_r = agent_risk_compliance(raw_data)
+        # 4. Kịch bản Risk Agent: Chạy vòng lặp giật giật (Giống phần mềm diệt virus quét file)
+        for p in range(10, 85, 18):
+            bar_r.progress(p, text=f"🛡️ Risk Agent: Đang quét điểm nghẽn và dị thường giao dịch (Scan {p}%)...")
+            time.sleep(0.15)
+        bar_r.progress(90, text="🛡️ Risk Agent: Đang đối chiếu tệp luật tuân thủ (Compliance)...")
+        rep_r, tok_r = agent_risk_compliance(raw_data) # Gọi API thật
         st.session_state.r_rep = rep_r
         st.session_state.total_tokens += tok_r
-        bar_r.progress(100, text="✅ Risk Agent: Đã hoàn tất (100%)")
+        bar_r.progress(100, text="✅ Risk Agent: Rà soát rủi ro hoàn tất (100%)")
 
-        # 5. Chạy Banking Agent
-        bar_b.progress(40, text="🔄 Banking Agent: Đang đối chiếu sản phẩm...")
-        rep_b, tok_b = agent_banking_integration(raw_data)
+        # 5. Kịch bản Banking Agent: Giả lập độ trễ khi Ping API bên thứ 3
+        bar_b.progress(30, text="🌐 Banking Agent: Đang Ping tới Server Core Banking...")
+        time.sleep(0.4)
+        bar_b.progress(70, text="🔄 Banking Agent: Đang mapping điều kiện sản phẩm tín dụng...")
+        rep_b, tok_b = agent_banking_integration(raw_data) # Gọi API thật
         st.session_state.b_rep = rep_b
         st.session_state.total_tokens += tok_b
-        bar_b.progress(100, text="✅ Banking Agent: Đã hoàn tất (100%)")
+        bar_b.progress(100, text="✅ Banking Agent: Khớp nối sản phẩm thành công (100%)")
 
-        # 6. Chạy Decision Agent
-        bar_dec.progress(40, text="🔄 Decision Agent: Đang tổng hợp phán quyết cuối cùng...")
-        rep_dec, tok_dec = agent_decision(f"{st.session_state.p_rep}\n\n[TÀI CHÍNH]\n{st.session_state.f_rep}\n\n[RỦI RO]\n{st.session_state.r_rep}")
+        # 6. Kịch bản Decision Agent: Hồi hộp (Load vèo lên 99% rồi đứng chờ chốt hạ)
+        bar_dec.progress(40, text="🧠 Decision Agent: Đang thu thập Context từ 5 Agents...")
+        time.sleep(0.2)
+        bar_dec.progress(99, text="⚖️ Decision Agent: Đang tính toán trọng số quyết định (99%)...")
+        rep_dec, tok_dec = agent_decision(f"{st.session_state.p_rep}\n\n[TÀI CHÍNH]\n{st.session_state.f_rep}\n\n[RỦI RO]\n{st.session_state.r_rep}") # Gọi API thật
         st.session_state.final_dec = rep_dec
         st.session_state.total_tokens += tok_dec
-        bar_dec.progress(100, text="✅ Decision Agent: Đã chốt phán quyết (100%)")
+        bar_dec.progress(100, text="✅ Decision Agent: Đã xuất thẻ phán quyết (100%)")
         
         # Chốt thời gian
         end_time = time.time()
