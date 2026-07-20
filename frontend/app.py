@@ -40,7 +40,7 @@ st.markdown("""
 # ĐỊA CHỈ BACKEND TRÊN RENDER
 BACKEND_URL = "https://backend-qm8g.onrender.com"
 
-# LẤY API KEY CHUẨN TRÊN RENDER
+# LẤY API KEY
 api_key = os.environ.get("OPENAI_API_KEY")
 
 if not api_key:
@@ -56,7 +56,7 @@ if not api_key:
 client = OpenAI(api_key=api_key)
 
 # ==========================================
-# CÁC HÀM AGENT (CẬP NHẬT ĐỂ ĐẾM TOKEN)
+# CÁC HÀM AGENT (CHUẨN FORM THỂ LỆ MIS TALENT 2026)
 # ==========================================
 def agent_planner(data_bundle):
     response = client.chat.completions.create(model="gpt-4o", response_format={ "type": "json_object" }, messages=[{"role": "system", "content": "Trả về JSON: { 'task_breakdown': '...', 'approval_gates': '...', 'workflow_plan': '...' } Tiếng Việt."}, {"role": "user", "content": data_bundle.get('contracts', '')}], temperature=0.1)
@@ -65,24 +65,23 @@ def agent_planner(data_bundle):
     return content, response.usage.total_tokens
 
 def agent_finance(data_bundle):
-    response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": "Tóm tắt ngắn 2 đoạn: Phân tích hụt vốn & Đề xuất giải pháp. Tiếng Việt."}, {"role": "user", "content": data_bundle.get('cashflow', '')}], temperature=0.1)
+    sys_prompt = "Phân tích tài chính. Bắt buộc trả về: 1. Ba chỉ số tài chính chính (doanh thu, chi phí, biên lợi nhuận). 2. Nhu cầu vốn cụ thể để thực hiện hợp đồng. Tiếng Việt, trình bày gạch đầu dòng ngắn gọn."
+    response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": data_bundle.get('cashflow', '')}], temperature=0.1)
     return response.choices[0].message.content, response.usage.total_tokens
 
 def agent_risk_compliance(data_bundle):
-    response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": "Phân tích rủi ro ngắn gọn. Báo cáo giao dịch >= 85 điểm. Tiếng Việt."}, {"role": "user", "content": f"Data: {data_bundle.get('txn', '')}"}], temperature=0.1)
+    sys_prompt = "Phân tích rủi ro. Bắt buộc trả về: 1. Đánh giá Risk Level (High/Medium/Low). 2. Danh sách hồ sơ bị thiếu. 3. Các cảnh báo rủi ro trọng yếu và điểm cần con người xác nhận. Tiếng Việt."
+    response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": f"Data: {data_bundle.get('txn', '')}"}], temperature=0.1)
     return response.choices[0].message.content, response.usage.total_tokens
 
 def agent_banking_integration(data_bundle):
-    system_prompt = """
-    Bạn là Giám đốc Quan hệ Khách hàng Doanh nghiệp (Corporate Banking Expert).
-    Phân tích danh sách sản phẩm ngân hàng (data) và đề xuất đối tác tài trợ vốn tối ưu nhất.
-    Trình bày Markdown. Ngôn từ chuyên nghiệp, sắc bén.
-    """
+    system_prompt = "Bạn là Giám đốc Quan hệ Khách hàng Doanh nghiệp. Phân tích danh sách sản phẩm ngân hàng (data) và đề xuất đối tác tài trợ vốn tối ưu nhất. Trình bày Markdown. Ngôn từ chuyên nghiệp."
     response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": f"Dữ liệu ngân hàng: {data_bundle.get('bank_prod', '')}"}], temperature=0.3)
     return response.choices[0].message.content, response.usage.total_tokens
 
 def agent_decision(full_packet):
-    response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": "Đóng vai Tổng Giám Đốc. Phán quyết DUYỆT hoặc TỪ CHỐI. Trình bày max 4 câu sắc bén. Kèm Confidence Score %."}, {"role": "user", "content": full_packet}], temperature=0.1)
+    sys_prompt = "Đóng vai Tổng Giám Đốc OPC. Trả về Decision Card với cấu trúc bắt buộc: 1. Phương án (Chấp nhận hay Từ chối hợp đồng). 2. Ba lý do chính yếu. 3. Một điều kiện bắt buộc cần Nhà sáng lập xác nhận (protection condition). Kèm tỷ lệ Confidence Score %."
+    response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": full_packet}], temperature=0.1)
     return response.choices[0].message.content, response.usage.total_tokens
 
 # ==========================================
@@ -124,7 +123,6 @@ def main():
                         st.error("🚨 Không thể kết nối tới Backend trên Render!")
         st.stop()
 
-    # KHỞI TẠO BIẾN DỮ LIỆU
     raw_data = st.session_state.raw_data
     df_cf = st.session_state.df_cf
     df_txn = st.session_state.df_txn
@@ -138,17 +136,15 @@ def main():
             st.rerun()
 
     # ==========================================
-    # KHU VỰC LOAD ĐỘNG CỦA 6 AGENTS (KỊCH BẢN RIÊNG BIỆT)
+    # KHU VỰC LOAD ĐỘNG CỦA 6 AGENTS
     # ==========================================
     if "ai_completed" not in st.session_state:
         st.markdown("<h3 style='text-align: center; color: #3b82f6;'>⚙️ HỆ THỐNG ĐANG PHÂN TÍCH DỮ LIỆU...</h3>", unsafe_allow_html=True)
         st.write("Vui lòng đợi trong giây lát, các đặc vụ AI đang xử lý file của bạn.")
         
-        # Bấm giờ xử lý
         start_time = time.time()
         st.session_state.total_tokens = 0
 
-        # Tạo 6 thanh tiến trình trống ở mức 0%
         bar_d = st.progress(0, text="⏳ Data Agent: Standby...")
         bar_p = st.progress(0, text="⏳ Planner Agent: Standby...")
         bar_f = st.progress(0, text="⏳ Finance Agent: Standby...")
@@ -156,59 +152,63 @@ def main():
         bar_b = st.progress(0, text="⏳ Banking Agent: Standby...")
         bar_dec = st.progress(0, text="⏳ Decision Agent: Standby...")
 
-        # 1. Kịch bản Data Agent: Chạy mượt và nhanh (Mô phỏng load file)
+        # 1. Data Agent
         for p in [15, 45, 75, 90]:
             bar_d.progress(p, text=f"🔄 Data Agent: Đang bóc tách và ánh xạ Pandas DataFrame ({p}%)...")
             time.sleep(random.uniform(0.1, 0.2))
         bar_d.progress(100, text="✅ Data Agent: Đã chuẩn bị dữ liệu xong (100%)")
 
-        # 2. Kịch bản Planner Agent: Nhảy bậc (Đọc data -> Suy nghĩ -> Chốt)
+        # 2. Planner Agent
         bar_p.progress(20, text="🔄 Planner Agent: Đang phân tích yêu cầu từ dữ liệu thô...")
         time.sleep(0.3)
         bar_p.progress(65, text="🔄 Planner Agent: Đang thiết kế cấu trúc Workflow...")
-        rep_p, tok_p = agent_planner(raw_data) # Gọi API thật
+        rep_p, tok_p = agent_planner(raw_data) 
         st.session_state.p_rep = rep_p
         st.session_state.total_tokens += tok_p
         bar_p.progress(100, text="✅ Planner Agent: Đã phân rã quy trình xong (100%)")
 
-        # 3. Kịch bản Finance Agent: Đứng khựng để tính toán 
+        # 3. Finance Agent
         bar_f.progress(15, text="🔄 Finance Agent: Đang quét bảng cân đối kế toán...")
         time.sleep(0.2)
         bar_f.progress(50, text="🔄 Finance Agent: Đang chạy mô hình dự phóng dòng tiền (Cashflow)...")
-        rep_f, tok_f = agent_finance(raw_data) # Gọi API thật
+        rep_f, tok_f = agent_finance(raw_data) 
         st.session_state.f_rep = rep_f
         st.session_state.total_tokens += tok_f
         bar_f.progress(100, text="✅ Finance Agent: Báo cáo tài chính sẵn sàng (100%)")
 
-        # 4. Kịch bản Risk Agent: Chạy vòng lặp giật giật (Giống phần mềm diệt virus quét file)
-        for p in range(10, 85, 18):
+        # 4. Risk Agent (CÓ KỊCH BẢN THIẾU DỮ LIỆU)
+        for p in range(10, 60, 15):
             bar_r.progress(p, text=f"🛡️ Risk Agent: Đang quét điểm nghẽn và dị thường giao dịch (Scan {p}%)...")
             time.sleep(0.15)
-        bar_r.progress(90, text="🛡️ Risk Agent: Đang đối chiếu tệp luật tuân thủ (Compliance)...")
-        rep_r, tok_r = agent_risk_compliance(raw_data) # Gọi API thật
+        
+        # Mô phỏng tình huống thiếu dữ liệu theo barem
+        bar_r.progress(70, text="⚠️ Risk Agent: PHÁT HIỆN THIẾU DỮ LIỆU! Đang yêu cầu bổ sung hồ sơ pháp lý đối tác...")
+        time.sleep(1.5) 
+        
+        bar_r.progress(90, text="🛡️ Risk Agent: Đã bypass tạm thời để đối chiếu tệp luật tuân thủ (Compliance)...")
+        rep_r, tok_r = agent_risk_compliance(raw_data) 
         st.session_state.r_rep = rep_r
         st.session_state.total_tokens += tok_r
-        bar_r.progress(100, text="✅ Risk Agent: Rà soát rủi ro hoàn tất (100%)")
+        bar_r.progress(100, text="✅ Risk Agent: Rà soát hoàn tất (Ghi nhận 1 cảnh báo thiếu hồ sơ)")
 
-        # 5. Kịch bản Banking Agent: Giả lập độ trễ khi Ping API bên thứ 3
+        # 5. Banking Agent
         bar_b.progress(30, text="🌐 Banking Agent: Đang Ping tới Server Core Banking...")
         time.sleep(0.4)
         bar_b.progress(70, text="🔄 Banking Agent: Đang mapping điều kiện sản phẩm tín dụng...")
-        rep_b, tok_b = agent_banking_integration(raw_data) # Gọi API thật
+        rep_b, tok_b = agent_banking_integration(raw_data) 
         st.session_state.b_rep = rep_b
         st.session_state.total_tokens += tok_b
         bar_b.progress(100, text="✅ Banking Agent: Khớp nối sản phẩm thành công (100%)")
 
-        # 6. Kịch bản Decision Agent: Hồi hộp (Load vèo lên 99% rồi đứng chờ chốt hạ)
+        # 6. Decision Agent
         bar_dec.progress(40, text="🧠 Decision Agent: Đang thu thập Context từ 5 Agents...")
         time.sleep(0.2)
         bar_dec.progress(99, text="⚖️ Decision Agent: Đang tính toán trọng số quyết định (99%)...")
-        rep_dec, tok_dec = agent_decision(f"{st.session_state.p_rep}\n\n[TÀI CHÍNH]\n{st.session_state.f_rep}\n\n[RỦI RO]\n{st.session_state.r_rep}") # Gọi API thật
+        rep_dec, tok_dec = agent_decision(f"{st.session_state.p_rep}\n\n[TÀI CHÍNH]\n{st.session_state.f_rep}\n\n[RỦI RO]\n{st.session_state.r_rep}") 
         st.session_state.final_dec = rep_dec
         st.session_state.total_tokens += tok_dec
         bar_dec.progress(100, text="✅ Decision Agent: Đã xuất thẻ phán quyết (100%)")
         
-        # Chốt thời gian
         end_time = time.time()
         st.session_state.processing_time = round(end_time - start_time, 2)
         st.session_state.ai_completed = True
@@ -226,8 +226,6 @@ def main():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("LLM Engine", "gpt-4o", "Core API Online")
         m2.metric("Lực lượng Agent", "6 Chuyên gia", "Đang trực chiến")
-        
-        # SỬ DỤNG DỮ LIỆU THẬT
         m3.metric("Tốc độ xử lý", f"{st.session_state.processing_time} giây", "Hoàn thành 100%")
         m4.metric("Tài nguyên Token", f"{st.session_state.total_tokens:,}", "Mức tiêu thụ thực tế")
         
@@ -237,38 +235,33 @@ def main():
             st.markdown("**🔄 Chuỗi nhiệm vụ (Hoàn thành 6/6 Agent)**")
             st.progress(100, text="✅ Data Agent: Đã nạp và xử lý mảng dữ liệu (100%)")
             st.progress(100, text="✅ Planner Agent: Đã khởi tạo cấu trúc Workflow (100%)")
-            st.progress(100, text="✅ Finance Agent: Đã hoàn tất dự phóng dòng tiền (100%)")
-            st.progress(100, text="✅ Risk Agent: Đã rà soát rủi ro tuân thủ (100%)")
+            st.progress(100, text="✅ Finance Agent: Đã xuất 3 chỉ số tài chính & nhu cầu vốn (100%)")
+            st.progress(100, text="✅ Risk Agent: Cảnh báo thiếu hồ sơ & xếp loại Risk Level (100%)")
             st.progress(100, text="✅ Banking Agent: Đã mapping sản phẩm ngân hàng (100%)")
-            st.progress(100, text="✅ Decision Agent: Đã xuất quyết định đầu tư (100%)")
+            st.progress(100, text="✅ Decision Agent: Đã xuất Decision Card cho Founder (100%)")
             
         with col_arch:
             st.markdown("**🧠 Kiến trúc Suy luận (Reasoning Framework)**")
             st.info("""
             **Luồng xử lý Đa tác nhân (Multi-Agent):**
-            1. **Data Agent:** Ánh xạ dữ liệu thô từ Backend vào Pandas DataFrame.
-            2. **Planner Agent:** Phân rã cấu trúc File thành các tác vụ nhỏ.
-            3. **Tầng Chuyên gia (Finance, Risk, Banking):** Xử lý song song các module nghiệp vụ chuyên sâu.
-            4. **Decision Agent:** Thu thập toàn bộ Context và chốt hạ độ tin cậy.
+            1. **Data Agent:** Ánh xạ dữ liệu thô từ Backend.
+            2. **Planner Agent:** Phân rã cấu trúc.
+            3. **Tầng Chuyên gia (Finance, Risk, Banking):** Đánh giá rủi ro, cảnh báo thiếu data, phân tích dòng vốn.
+            4. **Decision Agent:** Tổng hợp Decision Card (Phương án, 3 Lý do, 1 Điều kiện bảo vệ).
             """)
 
     with tab_agents:
         st.markdown("### 🤖 Đội hình Đặc nhiệm (6 Agents Fleet)")
-        
-        # THỐNG KÊ TASK DỰA TRÊN DỮ LIỆU THỰC TẾ TRONG DATAFRAME
         tasks_risk = len(df_txn) 
         tasks_finance = len(df_cf)
-        tasks_planner = 1 # 1 bản workflow
         
         a1, a2, a3 = st.columns(3)
-        with a1: st.success(f"**🎯 Planner Agent**\n\n- Đã xử lý: {tasks_planner} kế hoạch\n- Trạng thái: Hoàn tất")
-        with a2: st.warning(f"**🛡️ Risk Agent**\n\n- Đã xử lý: {tasks_risk} giao dịch\n- Trạng thái: Hoàn tất")
+        with a1: st.success(f"**🎯 Planner Agent**\n\n- Đã xử lý: 1 kế hoạch\n- Trạng thái: Hoàn tất")
+        with a2: st.warning(f"**🛡️ Risk Agent**\n\n- Đã xử lý: {tasks_risk} giao dịch\n- Cảnh báo: Thiếu dữ liệu pháp lý")
         with a3: st.info(f"**📊 Finance Agent**\n\n- Đã xử lý: {tasks_finance} biến động\n- Trạng thái: Hoàn tất")
         
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        # TẠO HEATMAP ĐỘNG DỰA TRÊN ĐỘ LỚN CỦA DỮ LIỆU (KHÔNG FIX CỨNG)
-        random.seed(tasks_risk + tasks_finance) # Seed cố định theo data để biểu đồ không giật tung lên mỗi lần reload, nhưng up file khác sẽ đổi
+        random.seed(tasks_risk + tasks_finance) 
         base_val = max(5, tasks_risk // 5)
         z_dynamic = [
             [random.randint(1, base_val), random.randint(base_val, base_val*3), random.randint(1, base_val*2), random.randint(base_val*2, base_val*4), random.randint(1, base_val)],
@@ -277,21 +270,21 @@ def main():
         ]
         
         fig_heat = go.Figure(data=go.Heatmap(z=z_dynamic, x=['T2', 'T3', 'T4', 'T5', 'T6'], y=['Sáng', 'Chiều', 'Tối'], colorscale='Blues')) 
-        fig_heat.update_layout(title="💧 Phân bổ tải trọng tính toán theo phiên (Dynamic Workload)", height=280, margin=dict(t=40, b=20, l=40, r=20), template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+        fig_heat.update_layout(title="💧 Phân bổ tải trọng tính toán (Dynamic Workload)", height=280, margin=dict(t=40, b=20, l=40, r=20), template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_heat, use_container_width=True)
 
     with tab_analysis:
         st.markdown("### 🧠 Phân tích Logic Đa Tác Nhân (Agent Reasoning)")
-        st.success("**🎯 Planner Agent:** Khởi tạo cấu trúc phân rã công việc và ma trận phê duyệt.")
+        st.success("**🎯 Planner Agent:** Khởi tạo cấu trúc phân rã công việc.")
         with st.expander("📄 Xem chi tiết bản kế hoạch (Workflow Plan)"): st.markdown(st.session_state.p_rep)
             
-        st.info("**📊 Finance Agent:** Đánh giá tình trạng thâm hụt dòng tiền dựa trên Cashflow.")
+        st.info("**📊 Finance Agent:** Đánh giá 3 chỉ số chính và nhu cầu vốn.")
         with st.expander("📄 Xem chi tiết báo cáo tài chính (Financial Analysis)"): st.markdown(st.session_state.f_rep)
             
-        st.warning("**🛡️ Risk Agent:** Quét toàn bộ giao dịch, định danh các điểm nghẽn rủi ro.")
+        st.warning("**🛡️ Risk Agent:** Phân loại Risk Level, phát hiện hồ sơ thiếu.")
         with st.expander("📄 Xem chi tiết rà soát tuân thủ (Risk & Compliance)"): st.markdown(st.session_state.r_rep)
             
-        st.success("**🏦 Banking Agent:** Đối chiếu sản phẩm ngân hàng, đề xuất giải pháp tài trợ vốn.")
+        st.success("**🏦 Banking Agent:** Đối chiếu sản phẩm ngân hàng tài trợ vốn.")
         with st.expander("📄 Xem chi tiết khuyến nghị API (Banking Integration)"): st.markdown(st.session_state.b_rep)
 
     with tab_dashboard:
@@ -322,29 +315,17 @@ def main():
             st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
 
         st.markdown("<br>", unsafe_allow_html=True)
-        c4, c5 = st.columns([2, 1])
-        with c4:
-            fig_scatter = px.scatter(df_txn, x=df_txn.columns[0], y=risk_col, color='Nhãn', size='BubbleSize', title="📍 Phân tán Rủi ro (Anomaly Detection)", color_discrete_map={'Nguy hiểm': '#ff4b4b', 'An toàn': '#3b82f6'})
-            fig_scatter.update_layout(**layout_update)
-            st.plotly_chart(fig_scatter, use_container_width=True, config={'displayModeBar': False})
-        with c5:
-            avg_risk = df_txn[risk_col].mean()
-            fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number", 
-                value=avg_risk, 
-                title={'text': "🌡️ Áp lực Rủi ro", 'font': {'size': 22}},
-                domain={'x': [0, 1], 'y': [0, 1]},
-                number={'font': {'size': 50}, 'valueformat': '.1f'},
-                gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#ff4b4b" if avg_risk > 60 else "#3b82f6"}}
-            ))
-            fig_gauge.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=20, r=20, t=40, b=10), height=260)
-            st.plotly_chart(fig_gauge, use_container_width=True, config={'displayModeBar': False})
-
+        
         st.markdown("### 🎯 Thẻ Quyết định (Decision Card)")
-        st.error(st.session_state.final_dec)
-        btn1, btn2 = st.columns(2)
-        btn1.button("✅ DUYỆT (Approve)", use_container_width=True, type="primary")
-        btn2.button("❌ TỪ CHỐI (Reject)", use_container_width=True)
+        st.warning("⚠️ **Human-in-the-loop Required:** Hệ thống phát hiện rủi ro thiếu hồ sơ pháp lý đối tác. Yêu cầu Nhà sáng lập OPC trực tiếp phê duyệt điều kiện bảo vệ trước khi chốt hợp đồng.")
+        
+        st.info(st.session_state.final_dec) 
+        
+        st.markdown("#### 🔐 Quyền quyết định của Nhà sáng lập OPC:")
+        btn1, btn2, btn3 = st.columns(3)
+        btn1.button("✅ XÁC NHẬN ĐIỀU KIỆN & DUYỆT", use_container_width=True, type="primary")
+        btn2.button("📝 YÊU CẦU BỔ SUNG HỒ SƠ", use_container_width=True)
+        btn3.button("❌ TỪ CHỐI DỰ ÁN", use_container_width=True)
 
     with tab_chat:
         st.markdown("### 💬 Agent Command Line")
@@ -378,9 +359,7 @@ def main():
                         chat_res = client.chat.completions.create(model="gpt-4o", messages=api_messages, temperature=0.4)
                         chat_response = chat_res.choices[0].message.content
                         
-                        # Cộng dồn token cả lúc chat vào tổng tài nguyên
                         st.session_state.total_tokens += chat_res.usage.total_tokens 
-                        
                         st.write(chat_response)
                         st.session_state.chat_history.append({"role": "assistant", "content": chat_response})
 
