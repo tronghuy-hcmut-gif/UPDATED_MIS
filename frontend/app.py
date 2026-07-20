@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import graphviz
 from openai import OpenAI
 import requests
 
@@ -17,6 +18,7 @@ st.set_page_config(page_title="OPC Mission Control", page_icon="⚡", layout="wi
 
 st.markdown("""
     <style>
+        /* Theme gốc của bạn */
         .stApp {
             background: radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.15), transparent 40%),
                         radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15), transparent 40%),
@@ -34,6 +36,24 @@ st.markdown("""
         .stTabs [data-baseweb="tab-highlight"] { display: none !important; }
         div[data-testid="metric-container"] { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5% 10%; border-radius: 24px; box-shadow: inset 0 2px 5px rgba(255,255,255,0.05), 0 8px 32px 0 rgba(0, 0, 0, 0.2); }
         .stAlert, .stInfo, .stSuccess, .stWarning, .stError { background: rgba(255, 255, 255, 0.05) !important; backdrop-filter: blur(15px) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; border-radius: 16px !important; color: #f1f5f9 !important; box-shadow: inset 0 1px 4px rgba(255,255,255,0.1); }
+        
+        /* 3. CSS RED ALERT ĐỘ THÊM */
+        @keyframes blink {
+            0% { background-color: rgba(255, 75, 75, 0.2); border: 2px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+            50% { background-color: rgba(255, 75, 75, 0.4); border: 2px solid #ff1a1a; box-shadow: 0 0 20px #ff1a1a; }
+            100% { background-color: rgba(255, 75, 75, 0.2); border: 2px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+        }
+        .red-alert {
+            animation: blink 1.5s infinite;
+            padding: 20px;
+            border-radius: 16px;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 25px;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -54,6 +74,37 @@ if not api_key:
     st.stop()
 
 client = OpenAI(api_key=api_key)
+
+# ==========================================
+# HÀM VẼ SƠ ĐỒ TRẠNG THÁI (GRAPHVIZ) - ĐỘ THÊM
+# ==========================================
+def draw_architecture(active_agents=[], alert=False):
+    dot = graphviz.Digraph(engine='dot')
+    dot.attr(rankdir='LR', size='10,4', bgcolor='transparent')
+    dot.attr('node', shape='box', style='rounded,filled', fontname='Arial', width='1.5')
+    dot.attr('edge', fontcolor='white', color='#94a3b8')
+    
+    colors = {
+        'Data': '#e6f2ff' if 'Data' not in active_agents else '#4da6ff',
+        'Planner': '#e6f2ff' if 'Planner' not in active_agents else '#4da6ff',
+        'Finance': '#e6ffe6' if 'Finance' not in active_agents else '#4dff4d',
+        'Risk': '#ffe6e6' if 'Risk' not in active_agents else ('#ff4b4b' if alert else '#ff9999'),
+        'Banking': '#f2e6ff' if 'Banking' not in active_agents else '#b366ff',
+        'Decision': '#ffffe6' if 'Decision' not in active_agents else '#ffff4d'
+    }
+
+    for agent, color in colors.items():
+        dot.node(agent, f"{agent} Agent", fillcolor=color, fontcolor='black')
+
+    dot.edge('Data', 'Planner', label=' Raw Data')
+    dot.edge('Planner', 'Finance', label=' Task')
+    dot.edge('Planner', 'Risk', label=' Task')
+    dot.edge('Planner', 'Banking', label=' Task')
+    dot.edge('Finance', 'Decision', label=' Margin')
+    dot.edge('Risk', 'Decision', label=' Risk')
+    dot.edge('Banking', 'Decision', label=' Product')
+
+    return dot
 
 # ==========================================
 # CÁC HÀM AGENT (CHUẨN FORM THỂ LỆ MIS TALENT 2026)
@@ -136,79 +187,73 @@ def main():
             st.rerun()
 
     # ==========================================
-    # KHU VỰC LOAD ĐỘNG CỦA 6 AGENTS
+    # KHU VỰC LOAD ĐỘNG CỦA 6 AGENTS (ĐÃ ĐỘ THÊM TERMINAL VÀ GRAPH)
     # ==========================================
     if "ai_completed" not in st.session_state:
-        st.markdown("<h3 style='text-align: center; color: #3b82f6;'>⚙️ HỆ THỐNG ĐANG PHÂN TÍCH DỮ LIỆU...</h3>", unsafe_allow_html=True)
-        st.write("Vui lòng đợi trong giây lát, các đặc vụ AI đang xử lý file của bạn.")
+        st.markdown("<h3 style='text-align: center; color: #3b82f6;'>⚙️ HỆ THỐNG ĐANG PHÂN TÍCH ĐA TÁC NHÂN...</h3>", unsafe_allow_html=True)
+        st.write("")
         
         start_time = time.time()
         st.session_state.total_tokens = 0
-
-        bar_d = st.progress(0, text="⏳ Data Agent: Standby...")
-        bar_p = st.progress(0, text="⏳ Planner Agent: Standby...")
-        bar_f = st.progress(0, text="⏳ Finance Agent: Standby...")
-        bar_r = st.progress(0, text="⏳ Risk Agent: Standby...")
-        bar_b = st.progress(0, text="⏳ Banking Agent: Standby...")
-        bar_dec = st.progress(0, text="⏳ Decision Agent: Standby...")
-
-        # 1. Data Agent
-        for p in [15, 45, 75, 90]:
-            bar_d.progress(p, text=f"🔄 Data Agent: Đang bóc tách và ánh xạ Pandas DataFrame ({p}%)...")
-            time.sleep(random.uniform(0.1, 0.2))
-        bar_d.progress(100, text="✅ Data Agent: Đã chuẩn bị dữ liệu xong (100%)")
-
-        # 2. Planner Agent
-        bar_p.progress(20, text="🔄 Planner Agent: Đang phân tích yêu cầu từ dữ liệu thô...")
-        time.sleep(0.3)
-        bar_p.progress(65, text="🔄 Planner Agent: Đang thiết kế cấu trúc Workflow...")
-        rep_p, tok_p = agent_planner(raw_data) 
-        st.session_state.p_rep = rep_p
-        st.session_state.total_tokens += tok_p
-        bar_p.progress(100, text="✅ Planner Agent: Đã phân rã quy trình xong (100%)")
-
-        # 3. Finance Agent
-        bar_f.progress(15, text="🔄 Finance Agent: Đang quét bảng cân đối kế toán...")
-        time.sleep(0.2)
-        bar_f.progress(50, text="🔄 Finance Agent: Đang chạy mô hình dự phóng dòng tiền (Cashflow)...")
-        rep_f, tok_f = agent_finance(raw_data) 
-        st.session_state.f_rep = rep_f
-        st.session_state.total_tokens += tok_f
-        bar_f.progress(100, text="✅ Finance Agent: Báo cáo tài chính sẵn sàng (100%)")
-
-        # 4. Risk Agent (CÓ KỊCH BẢN THIẾU DỮ LIỆU)
-        for p in range(10, 60, 15):
-            bar_r.progress(p, text=f"🛡️ Risk Agent: Đang quét điểm nghẽn và dị thường giao dịch (Scan {p}%)...")
-            time.sleep(0.15)
         
-        # Mô phỏng tình huống thiếu dữ liệu theo barem
-        bar_r.progress(70, text="⚠️ Risk Agent: PHÁT HIỆN THIẾU DỮ LIỆU! Đang yêu cầu bổ sung hồ sơ pháp lý đối tác...")
-        time.sleep(1.5) 
+        col_log, col_graph = st.columns([1, 1.5])
         
-        bar_r.progress(90, text="🛡️ Risk Agent: Đã bypass tạm thời để đối chiếu tệp luật tuân thủ (Compliance)...")
-        rep_r, tok_r = agent_risk_compliance(raw_data) 
-        st.session_state.r_rep = rep_r
-        st.session_state.total_tokens += tok_r
-        bar_r.progress(100, text="✅ Risk Agent: Rà soát hoàn tất (Ghi nhận 1 cảnh báo thiếu hồ sơ)")
+        with col_graph:
+            graph_placeholder = st.empty()
+            graph_placeholder.graphviz_chart(draw_architecture())
 
-        # 5. Banking Agent
-        bar_b.progress(30, text="🌐 Banking Agent: Đang Ping tới Server Core Banking...")
-        time.sleep(0.4)
-        bar_b.progress(70, text="🔄 Banking Agent: Đang mapping điều kiện sản phẩm tín dụng...")
-        rep_b, tok_b = agent_banking_integration(raw_data) 
-        st.session_state.b_rep = rep_b
-        st.session_state.total_tokens += tok_b
-        bar_b.progress(100, text="✅ Banking Agent: Khớp nối sản phẩm thành công (100%)")
+        with col_log:
+            with st.status("Khởi tạo luồng Agentic Workflow...", expanded=True) as status:
+                # 1. Data Agent
+                graph_placeholder.graphviz_chart(draw_architecture(['Data']))
+                st.write("⏳ **Data Agent:** Đang bóc tách và ánh xạ dữ liệu Pandas...")
+                time.sleep(1)
+                st.write("✅ **Data Agent:** Chuẩn bị dữ liệu hoàn tất.")
+                
+                # 2. Planner Agent
+                graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner']))
+                st.write("⏳ **Planner Agent:** Đang thiết kế cấu trúc Workflow...")
+                rep_p, tok_p = agent_planner(raw_data) 
+                st.session_state.p_rep = rep_p
+                st.session_state.total_tokens += tok_p
+                st.write("✅ **Planner Agent:** Phân rã quy trình xong.")
 
-        # 6. Decision Agent
-        bar_dec.progress(40, text="🧠 Decision Agent: Đang thu thập Context từ 5 Agents...")
-        time.sleep(0.2)
-        bar_dec.progress(99, text="⚖️ Decision Agent: Đang tính toán trọng số quyết định (99%)...")
-        rep_dec, tok_dec = agent_decision(f"{st.session_state.p_rep}\n\n[TÀI CHÍNH]\n{st.session_state.f_rep}\n\n[RỦI RO]\n{st.session_state.r_rep}") 
-        st.session_state.final_dec = rep_dec
-        st.session_state.total_tokens += tok_dec
-        bar_dec.progress(100, text="✅ Decision Agent: Đã xuất thẻ phán quyết (100%)")
-        
+                # 3. Finance Agent
+                graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner', 'Finance']))
+                st.write("⏳ **Finance Agent:** Đang chạy mô hình dự phóng dòng tiền (Cashflow)...")
+                rep_f, tok_f = agent_finance(raw_data) 
+                st.session_state.f_rep = rep_f
+                st.session_state.total_tokens += tok_f
+                st.write("✅ **Finance Agent:** Báo cáo tài chính sẵn sàng.")
+
+                # 4. Risk Agent (Có báo động đỏ)
+                graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner', 'Finance', 'Risk'], alert=True))
+                st.write("⏳ **Risk Agent:** Đang quét điểm nghẽn và dị thường giao dịch...")
+                time.sleep(1)
+                st.markdown('<span style="color:#ff4b4b; font-weight:bold;">🚨 Risk Agent: PHÁT HIỆN THIẾU DỮ LIỆU PHÁP LÝ!</span>', unsafe_allow_html=True)
+                rep_r, tok_r = agent_risk_compliance(raw_data) 
+                st.session_state.r_rep = rep_r
+                st.session_state.total_tokens += tok_r
+                st.write("✅ **Risk Agent:** Đối chiếu Compliance xong (Ghi nhận 1 Risk Flag).")
+
+                # 5. Banking Agent
+                graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner', 'Finance', 'Risk', 'Banking'], alert=True))
+                st.write("⏳ **Banking Agent:** Đang ping tới Server Core Banking...")
+                rep_b, tok_b = agent_banking_integration(raw_data) 
+                st.session_state.b_rep = rep_b
+                st.session_state.total_tokens += tok_b
+                st.write("✅ **Banking Agent:** Khớp nối sản phẩm thành công.")
+
+                # 6. Decision Agent
+                graph_placeholder.graphviz_chart(draw_architecture(['Data', 'Planner', 'Finance', 'Risk', 'Banking', 'Decision'], alert=True))
+                st.write("⏳ **Decision Agent:** Đang tính toán trọng số quyết định...")
+                rep_dec, tok_dec = agent_decision(f"{st.session_state.p_rep}\n\n[TÀI CHÍNH]\n{st.session_state.f_rep}\n\n[RỦI RO]\n{st.session_state.r_rep}") 
+                st.session_state.final_dec = rep_dec
+                st.session_state.total_tokens += tok_dec
+                st.write("✅ **Decision Agent:** Đã xuất Decision Card.")
+                
+                status.update(label="Hoàn tất phân tích dữ liệu!", state="complete", expanded=False)
+
         end_time = time.time()
         st.session_state.processing_time = round(end_time - start_time, 2)
         st.session_state.ai_completed = True
@@ -230,25 +275,19 @@ def main():
         m4.metric("Tài nguyên Token", f"{st.session_state.total_tokens:,}", "Mức tiêu thụ thực tế")
         
         st.divider()
-        col_act, col_arch = st.columns([1, 1])
+        col_act, col_arch = st.columns([1, 1.5])
         with col_act:
             st.markdown("**🔄 Chuỗi nhiệm vụ (Hoàn thành 6/6 Agent)**")
             st.progress(100, text="✅ Data Agent: Đã nạp và xử lý mảng dữ liệu (100%)")
             st.progress(100, text="✅ Planner Agent: Đã khởi tạo cấu trúc Workflow (100%)")
-            st.progress(100, text="✅ Finance Agent: Đã xuất 3 chỉ số tài chính & nhu cầu vốn (100%)")
-            st.progress(100, text="✅ Risk Agent: Cảnh báo thiếu hồ sơ & xếp loại Risk Level (100%)")
+            st.progress(100, text="✅ Finance Agent: Đã xuất 3 chỉ số tài chính (100%)")
+            st.progress(100, text="✅ Risk Agent: Cảnh báo thiếu hồ sơ pháp lý (100%)")
             st.progress(100, text="✅ Banking Agent: Đã mapping sản phẩm ngân hàng (100%)")
-            st.progress(100, text="✅ Decision Agent: Đã xuất Decision Card cho Founder (100%)")
+            st.progress(100, text="✅ Decision Agent: Đã xuất Decision Card (100%)")
             
         with col_arch:
-            st.markdown("**🧠 Kiến trúc Suy luận (Reasoning Framework)**")
-            st.info("""
-            **Luồng xử lý Đa tác nhân (Multi-Agent):**
-            1. **Data Agent:** Ánh xạ dữ liệu thô từ Backend.
-            2. **Planner Agent:** Phân rã cấu trúc.
-            3. **Tầng Chuyên gia (Finance, Risk, Banking):** Đánh giá rủi ro, cảnh báo thiếu data, phân tích dòng vốn.
-            4. **Decision Agent:** Tổng hợp Decision Card (Phương án, 3 Lý do, 1 Điều kiện bảo vệ).
-            """)
+            st.markdown("**🧠 Kiến trúc Suy luận Hệ thống**")
+            st.graphviz_chart(draw_architecture(['Data', 'Planner', 'Finance', 'Risk', 'Banking', 'Decision'], alert=True))
 
     with tab_agents:
         st.markdown("### 🤖 Đội hình Đặc nhiệm (6 Agents Fleet)")
@@ -298,7 +337,6 @@ def main():
         df_txn['Nhãn'] = df_txn[risk_col].apply(lambda x: 'Nguy hiểm' if x >= 85 else 'An toàn')
         df_txn['BubbleSize'] = df_txn[risk_col].apply(lambda x: max(x, 1))
 
-        # HÀNG 1: 3 Biểu đồ cơ bản
         c1, c2, c3 = st.columns(3)
         with c1:
             fig_cf_line = px.line(df_cf, x=df_cf.columns[0], y=cash_col, title="📉 Xu hướng Dòng tiền", markers=True, color_discrete_sequence=['#3b82f6'])
@@ -317,7 +355,6 @@ def main():
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # HÀNG 2: 2 Biểu đồ chuyên sâu
         c4, c5 = st.columns([2, 1])
         with c4:
             fig_scatter = px.scatter(df_txn, x=df_txn.columns[0], y=risk_col, color='Nhãn', size='BubbleSize', title="📍 Phân tán Rủi ro (Anomaly Detection)", color_discrete_map={'Nguy hiểm': '#ff4b4b', 'An toàn': '#3b82f6'})
@@ -328,9 +365,9 @@ def main():
             fig_gauge = go.Figure(go.Indicator(
                 mode="gauge+number", 
                 value=avg_risk, 
-                title={'text': "🌡️ Áp lực Rủi ro", 'font': {'size': 22}},
+                title={'text': "🌡️ Áp lực Rủi ro", 'font': {'size': 22, 'color': 'white'}},
                 domain={'x': [0, 1], 'y': [0, 1]},
-                number={'font': {'size': 50}, 'valueformat': '.1f'},
+                number={'font': {'size': 50, 'color': 'white'}, 'valueformat': '.1f'},
                 gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#ff4b4b" if avg_risk > 60 else "#3b82f6"}}
             ))
             fig_gauge.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=20, r=20, t=40, b=10), height=260)
@@ -338,9 +375,13 @@ def main():
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # KHU VỰC THẺ QUYẾT ĐỊNH 
+        # KHU VỰC THẺ QUYẾT ĐỊNH (ĐÃ THÊM HIỆU ỨNG RED ALERT)
         st.markdown("### 🎯 Thẻ Quyết định (Decision Card)")
-        st.warning("⚠️ **Human-in-the-loop Required:** Hệ thống phát hiện rủi ro thiếu hồ sơ pháp lý đối tác. Yêu cầu Nhà sáng lập OPC trực tiếp phê duyệt điều kiện bảo vệ trước khi chốt hợp đồng.")
+        
+        # Bơm thẻ Red Alert nhấp nháy vào đây
+        st.markdown('<div class="red-alert">🚨 HỆ THỐNG TẠM DỪNG: PHÁT HIỆN RỦI RO THIẾU HỒ SƠ PHÁP LÝ ĐỐI TÁC!</div>', unsafe_allow_html=True)
+        
+        st.warning("⚠️ **Human-in-the-loop Required:** Yêu cầu Nhà sáng lập OPC trực tiếp phê duyệt điều kiện bảo vệ trước khi chốt hợp đồng.")
         
         st.info(st.session_state.final_dec) 
         
